@@ -67,13 +67,15 @@ public class PerElementTransformStageChainStream {
         public <R> SimpleStream<R> map(Function<? super OUT, ? extends R> mapper) {
             return new StreamStage<OUT, R>(
                     list,
-                    this,
+                    this, //这里就是设置它的上层操作器
                     new Function<Consumer<R>, Consumer<OUT>>() {
                         @Override
                         public Consumer<OUT> apply(Consumer<R> outConsumer) {
                             return new TransformChain<OUT, R>(outConsumer) {
                                 @Override
                                 public void accept(OUT out) {
+                                    // mapper就是开发传入的mapper参数,一个function表达式 t->t*2
+                                    // 把执行得到的结果传给下一层的操作器
                                     downstream.accept(mapper.apply(out));
                                 }
                             };
@@ -127,9 +129,13 @@ public class PerElementTransformStageChainStream {
 
         Consumer wrapFunctions(Consumer lastConsumer) {
             Consumer consumer = lastConsumer;
+
+            // 由底向上遍历consumer
             for (StreamStage stage = this; stage.prevStage != null; stage = stage.prevStage) {
+                // 这里实际就是把当前操作的下级操作downstream置为consumer
                 consumer = (Consumer) stage.consumerPipelineTransformer.apply(consumer);
             }
+            // 最后返回头
             return consumer;
         }
 
@@ -153,12 +159,17 @@ public class PerElementTransformStageChainStream {
     }
 
     private static <T> SimpleStream<T> startStage(List<T> list, boolean parallel) {
+
         return new StreamStage<T, T>(
                 list,
+                // function的目的是为了把downstream传入到consumer类中，也就是为当前的操作器设置下级操作器
                 new Function<Consumer<T>, Consumer<T>>() {
                     @Override
-                    public Consumer<T> apply(Consumer<T> tConsumer) {
-                        return new StreamStage.TransformChain<T, T>(tConsumer) {
+                    public Consumer<T> apply(Consumer<T> tConsumer) { //这里是function的实现类
+                        // 在创建TransformChain的时候传入的tConsumer参数就会把downstream置为该值
+                        return new StreamStage.TransformChain<T, T>(tConsumer) { //这里的参数是构造函数的对应参数
+                            // downstream是类TransformChain中定义的，执行下层操作,它本身也是一个consumer
+                            // TransformChain实现了consumer类
                             @Override
                             public void accept(T t) {
                                 downstream.accept(t);
