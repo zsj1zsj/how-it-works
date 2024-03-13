@@ -40,6 +40,11 @@ public class CloningListStream<T> implements SimpleStream<T> {
     }
 
     @Override
+    public SimpleStream<T> distinct() {
+        return null;
+    }
+
+    @Override
     public List<T> collectToList() {
         return list;
     }

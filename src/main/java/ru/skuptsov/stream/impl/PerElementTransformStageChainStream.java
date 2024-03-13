@@ -1,8 +1,6 @@
 package ru.skuptsov.stream.impl;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
@@ -19,6 +17,7 @@ public class PerElementTransformStageChainStream {
         final Function<Consumer<OUT>, Consumer<IN>> consumerPipelineTransformer;
         final boolean parallel;
 
+        // 这个构造函数实在startStage里调的，因为这个stage没有upstream
         StreamStage(List<?> list, Function<Consumer<OUT>, Consumer<IN>> consumerPipelineTransformer, boolean parallel) {
             this.list = list;
             this.parallel = parallel;
@@ -26,6 +25,7 @@ public class PerElementTransformStageChainStream {
             this.consumerPipelineTransformer = consumerPipelineTransformer;
         }
 
+        // 其他的stage就调这个构造函数，需要upstream，也就是上一层的操作器
         StreamStage(List<?> list, StreamStage<?, ?> upStream, Function<Consumer<OUT>, Consumer<IN>> consumerPipelineTransformer, boolean parallel) {
             this.list = list;
             this.prevStage = upStream;
@@ -84,6 +84,35 @@ public class PerElementTransformStageChainStream {
                     parallel
             );
         }
+
+
+        @Override
+        public SimpleStream<OUT> distinct() {
+            return new StreamStage<OUT, OUT>(
+                    list,
+                    this, // 使用当前的 StreamStage 作为上游
+                    new Function<Consumer<OUT>, Consumer<OUT>>() {
+                        @Override
+                        public Consumer<OUT> apply(Consumer<OUT> outConsumer) {
+                            return new TransformChain<OUT, OUT>(outConsumer) {
+                                // 使用一个 HashSet 来跟踪已经见过的元素
+                                private Set<OUT> seen = new HashSet<>();
+
+                                @Override
+                                public void accept(OUT out) {
+                                    // 只有当 set 中添加成功时（即元素是唯一的），才将其传递给下游
+                                    if (seen.add(out)) {
+                                        downstream.accept(out);
+                                    }
+                                }
+                            };
+                        }
+                    },
+                    parallel
+            );
+        }
+
+
 
         @Override
         @SuppressWarnings("unchecked")
@@ -158,6 +187,8 @@ public class PerElementTransformStageChainStream {
         return PerElementTransformStageChainStream.startStage(list, parallel);
     }
 
+
+    // 猜测这个其实就是责任链的header
     private static <T> SimpleStream<T> startStage(List<T> list, boolean parallel) {
 
         return new StreamStage<T, T>(

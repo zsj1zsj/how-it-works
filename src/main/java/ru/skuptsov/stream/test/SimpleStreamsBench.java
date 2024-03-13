@@ -8,16 +8,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.Measurement;
-import org.openjdk.jmh.annotations.Mode;
-import org.openjdk.jmh.annotations.OutputTimeUnit;
-import org.openjdk.jmh.annotations.Param;
-import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.Setup;
-import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 import ru.skuptsov.stream.SimpleStream;
 import ru.skuptsov.stream.impl.CloningListStream;
@@ -40,8 +31,8 @@ import static java.util.concurrent.TimeUnit.MICROSECONDS;
  */
 @State(Scope.Thread)
 @BenchmarkMode(Mode.AverageTime)
-@Warmup(iterations = 5)
-@Measurement(iterations = 5)
+@Warmup(iterations = 2)
+@Measurement(iterations = 3)
 @OutputTimeUnit(MICROSECONDS)
 public class SimpleStreamsBench {
 
@@ -61,6 +52,7 @@ public class SimpleStreamsBench {
     }
 
     @Benchmark
+    @Fork(1)
     public void cloneStream(Blackhole bh) throws ExecutionException, InterruptedException {
         SimpleStream<Integer> cloneStream = CloningListStream.stream(list);
         bh.consume(cloneStream
@@ -72,6 +64,7 @@ public class SimpleStreamsBench {
     }
 
     @Benchmark
+    @Fork(1)
     public void perElTransformationChainStream(Blackhole bh) throws ExecutionException, InterruptedException {
         SimpleStream<Integer> stream = PerElementTransformStageChainStream.stream(list, false);
         bh.consume(stream
@@ -83,6 +76,7 @@ public class SimpleStreamsBench {
     }
 
     @Benchmark
+    @Fork(1)
     public void perElTransformationChainParallelStream(Blackhole bh) throws ExecutionException, InterruptedException {
         SimpleStream<Integer> stream = PerElementTransformStageChainStream.stream(list, true);
         bh.consume(stream
@@ -94,6 +88,7 @@ public class SimpleStreamsBench {
     }
 
     @Benchmark
+    @Fork(1)
     public void javaStream(Blackhole bh) throws ExecutionException, InterruptedException {
         Stream<Integer> javaStream = list.stream();
         bh.consume(javaStream
@@ -105,6 +100,7 @@ public class SimpleStreamsBench {
     }
 
     @Benchmark
+    @Fork(1)
     public void javaParallelStream(Blackhole bh) throws ExecutionException, InterruptedException {
         Stream<Integer> javaStream = list.parallelStream();
         bh.consume(javaStream

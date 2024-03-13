@@ -12,5 +12,10 @@ public interface SimpleStream<T> {
 
     <R> SimpleStream<R> map(Function<? super T, ? extends R> mapper);
 
+
+    //定义并实现distinct
+    SimpleStream<T> distinct();
+
+
     List<T> collectToList();
 }
