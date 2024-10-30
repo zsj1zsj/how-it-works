@@ -1,6 +1,7 @@
 package ru.skuptsov.stream;
 
 import java.util.List;
+import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -18,4 +19,8 @@ public interface SimpleStream<T> {
 
 
     List<T> collectToList();
+
+    Number sum();
+
+    T reduce(T identity, BinaryOperator<T> accumulator);
 }

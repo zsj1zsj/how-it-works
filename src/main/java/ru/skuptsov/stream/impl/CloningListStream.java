@@ -2,6 +2,7 @@ package ru.skuptsov.stream.impl;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -48,4 +49,16 @@ public class CloningListStream<T> implements SimpleStream<T> {
     public List<T> collectToList() {
         return list;
     }
+
+    @Override
+    public Number sum() {
+        return 0;
+    }
+
+    @Override
+    public T reduce(T identity, BinaryOperator<T> accumulator) {
+        return null;
+    }
+
+    ;
 }

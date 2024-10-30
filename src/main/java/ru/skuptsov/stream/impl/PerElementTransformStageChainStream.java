@@ -3,6 +3,8 @@ package ru.skuptsov.stream.impl;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -46,39 +48,31 @@ public class PerElementTransformStageChainStream {
             return new StreamStage<OUT, OUT>(
                     list,
                     this,
-                    new Function<Consumer<OUT>, Consumer<OUT>>() {
+                    outConsumer -> new TransformChain<OUT, OUT>(outConsumer) {
                         @Override
-                        public Consumer<OUT> apply(Consumer<OUT> outConsumer) {
-                            return new TransformChain<OUT, OUT>(outConsumer) {
-                                @Override
-                                public void accept(OUT out) {
-                                    if (predicate.test(out)) {
-                                        downstream.accept(out);
-                                    }
-                                }
-                            };
+                        public void accept(OUT out) {
+                            if (predicate.test(out)) {
+                                downstream.accept(out);
+                            }
                         }
                     },
+                    // 允许并发与否
                     parallel
             );
         }
 
+        // OUT是输入， R是输出
         @Override
         public <R> SimpleStream<R> map(Function<? super OUT, ? extends R> mapper) {
             return new StreamStage<OUT, R>(
                     list,
                     this, //这里就是设置它的上层操作器
-                    new Function<Consumer<R>, Consumer<OUT>>() {
+                    outConsumer -> new TransformChain<OUT, R>(outConsumer) {
                         @Override
-                        public Consumer<OUT> apply(Consumer<R> outConsumer) {
-                            return new TransformChain<OUT, R>(outConsumer) {
-                                @Override
-                                public void accept(OUT out) {
-                                    // mapper就是开发传入的mapper参数,一个function表达式 t->t*2
-                                    // 把执行得到的结果传给下一层的操作器
-                                    downstream.accept(mapper.apply(out));
-                                }
-                            };
+                        public void accept(OUT out) {
+                            // mapper就是开发传入的mapper参数,一个function表达式 t->t*2
+                            // 把执行得到的结果传给下一层的操作器
+                            downstream.accept(mapper.apply(out));
                         }
                     },
                     parallel
@@ -91,27 +85,21 @@ public class PerElementTransformStageChainStream {
             return new StreamStage<OUT, OUT>(
                     list,
                     this, // 使用当前的 StreamStage 作为上游
-                    new Function<Consumer<OUT>, Consumer<OUT>>() {
-                        @Override
-                        public Consumer<OUT> apply(Consumer<OUT> outConsumer) {
-                            return new TransformChain<OUT, OUT>(outConsumer) {
-                                // 使用一个 HashSet 来跟踪已经见过的元素
-                                private Set<OUT> seen = new HashSet<>();
+                    outConsumer -> new TransformChain<OUT, OUT>(outConsumer) {
+                        // 使用一个 HashSet 来跟踪已经见过的元素
+                        private Set<OUT> seen = new HashSet<>();
 
-                                @Override
-                                public void accept(OUT out) {
-                                    // 只有当 set 中添加成功时（即元素是唯一的），才将其传递给下游
-                                    if (seen.add(out)) {
-                                        downstream.accept(out);
-                                    }
-                                }
-                            };
+                        @Override
+                        public void accept(OUT out) {
+                            // 只有当 set 中添加成功时（即元素是唯一的），才将其传递给下游
+                            if (seen.add(out)) {
+                                downstream.accept(out);
+                            }
                         }
                     },
                     parallel
             );
         }
-
 
 
         @Override
@@ -123,6 +111,62 @@ public class PerElementTransformStageChainStream {
                 return processSerial();
             }
         }
+
+        public OUT reduce(OUT identity, BinaryOperator<OUT> accumulator) {
+            final OUT id = identity != null ? identity : (OUT) Integer.valueOf(0);
+            AtomicReference<OUT> sum = new AtomicReference<>(id);
+
+            Consumer<OUT> reduceConsumer = out -> sum.set(accumulator.apply(sum.get(), out));
+            Consumer<OUT> listElConsumer = wrapFunctions(reduceConsumer);
+
+            // 遍历流中的每个元素，应用累加
+            for (Object el : list) {
+                try {
+                    listElConsumer.accept((OUT) el);
+                } catch (ClassCastException e) {
+                    throw new IllegalArgumentException("Elements must be of type Number");
+                }
+            }
+            return sum.get();
+        }
+
+        public Number sum() {
+            if (list.isEmpty()) {
+                return 0;
+            }
+
+            // 自定义的 SumConsumer 类，用于处理累加
+            class SumConsumer implements Consumer<OUT> {
+                private Number sum = 0;
+                @Override
+                public void accept(OUT out) {
+                    if (out instanceof Number) {
+                        sum = sum.doubleValue() + ((Number) out).doubleValue();
+                    } else {
+                        throw new IllegalArgumentException("sum 方法只能应用于数值类型");
+                    }
+                }
+
+                public Number getSum() {
+                    return sum;
+                }
+            }
+
+            // 创建 SumConsumer 实例
+            SumConsumer sumConsumer = new SumConsumer();
+
+            // 将 SumConsumer 包装到 consumer 链中
+            Consumer<OUT> listElConsumer = wrapFunctions(sumConsumer);
+
+            // 遍历流中的每个元素，应用累加
+            for (Object el : list) {
+                listElConsumer.accept((OUT) el);
+            }
+
+            // 返回求和结果
+            return sumConsumer.getSum();
+        }
+
 
         private List<OUT> processParallel() {
             List<OUT> elements = new ArrayList<>();
@@ -175,9 +219,11 @@ public class PerElementTransformStageChainStream {
 
             Consumer listElConsumer = wrapFunctions(finalConsumer);
 
+            //begin
             for (Object el : list) {
                 listElConsumer.accept(el);
             }
+            //end
 
             return elements;
         }
@@ -194,19 +240,16 @@ public class PerElementTransformStageChainStream {
         return new StreamStage<T, T>(
                 list,
                 // function的目的是为了把downstream传入到consumer类中，也就是为当前的操作器设置下级操作器
-                new Function<Consumer<T>, Consumer<T>>() {
-                    @Override
-                    public Consumer<T> apply(Consumer<T> tConsumer) { //这里是function的实现类
-                        // 在创建TransformChain的时候传入的tConsumer参数就会把downstream置为该值
-                        return new StreamStage.TransformChain<T, T>(tConsumer) { //这里的参数是构造函数的对应参数
-                            // downstream是类TransformChain中定义的，执行下层操作,它本身也是一个consumer
-                            // TransformChain实现了consumer类
-                            @Override
-                            public void accept(T t) {
-                                downstream.accept(t);
-                            }
-                        };
-                    }
+                tConsumer -> { //这里是function的实现类
+                    // 在创建TransformChain的时候传入的tConsumer参数就会把downstream置为该值
+                    return new StreamStage.TransformChain<T, T>(tConsumer) { //这里的参数是构造函数的对应参数
+                        // downstream是类TransformChain中定义的，执行下层操作,它本身也是一个consumer
+                        // TransformChain实现了consumer类
+                        @Override
+                        public void accept(T t) {
+                            downstream.accept(t);
+                        }
+                    };
                 },
                 parallel);
     }
