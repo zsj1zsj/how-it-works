@@ -36,37 +36,9 @@ public class Main {
                 Arrays.asList(7, 8, 9)
         );
 
-        List<Person> nameList = Arrays.asList(new Person("Tanaka", 20),
-                new Person("Suzuki", 22), new Person("Takahashi", 21));
-        Stream<Object> stream = nameList.stream().flatMap(x -> Stream.of(x.name, x.age));
+        List<String> nameList = Arrays.asList("Tanaka", "Suzuki", "Takahashi");
+        Stream<Object> stream = nameList.stream().flatMap(x -> Stream.of(x, x.length()));
         System.out.println((stream.collect(Collectors.toList())));
-    }
-
-    public static class Person {
-        public Person(String name, int age) {
-            this.name = name;
-            this.age = age;
-        }
-
-        public int getAge() {
-            return age;
-        }
-
-        public void setAge(int age) {
-            this.age = age;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        private int age;
-        private String name;
-
     }
 
 }
