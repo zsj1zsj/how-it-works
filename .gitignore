@@ -1,1 +1,5 @@
 *.pyc
+target/
+.idea
+.gradle
+.DS_Store

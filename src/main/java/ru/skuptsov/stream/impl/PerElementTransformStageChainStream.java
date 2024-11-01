@@ -1,5 +1,7 @@
 package ru.skuptsov.stream.impl;
 
+import ru.skuptsov.stream.SimpleStream;
+
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
@@ -8,8 +10,6 @@ import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
-
-import ru.skuptsov.stream.SimpleStream;
 
 public class PerElementTransformStageChainStream {
 
@@ -132,39 +132,31 @@ public class PerElementTransformStageChainStream {
 
         public Number sum() {
             if (list.isEmpty()) {
-                return 0;
+                return 0.0;
             }
 
-            // 自定义的 SumConsumer 类，用于处理累加
-            class SumConsumer implements Consumer<OUT> {
-                private Number sum = 0;
-                @Override
-                public void accept(OUT out) {
-                    if (out instanceof Number) {
-                        sum = sum.doubleValue() + ((Number) out).doubleValue();
-                    } else {
-                        throw new IllegalArgumentException("sum 方法只能应用于数值类型");
-                    }
+            // 使用 reduce 并返回 Number 类型
+            return (Number) reduce((OUT) Double.valueOf(0), (a, b) -> {
+                if (a instanceof Number && b instanceof Number) {
+                    // 将 a 和 b 转换为 double 进行计算
+                    double result = ((Number) a).doubleValue() + ((Number) b).doubleValue();
+                    // 返回计算结果
+                    return (OUT) Double.valueOf(result);
+                } else {
+                    throw new IllegalArgumentException("Elements must be of type Number");
                 }
+            });
+        }
 
-                public Number getSum() {
-                    return sum;
-                }
+        public Number average() {
+            if (list.isEmpty()) {
+                return 0.0;
             }
 
-            // 创建 SumConsumer 实例
-            SumConsumer sumConsumer = new SumConsumer();
+            Double s = (Double) sum();
+            int size = list.size();
 
-            // 将 SumConsumer 包装到 consumer 链中
-            Consumer<OUT> listElConsumer = wrapFunctions(sumConsumer);
-
-            // 遍历流中的每个元素，应用累加
-            for (Object el : list) {
-                listElConsumer.accept((OUT) el);
-            }
-
-            // 返回求和结果
-            return sumConsumer.getSum();
+            return s / size;
         }
 
 
@@ -231,6 +223,10 @@ public class PerElementTransformStageChainStream {
 
     public static <T> SimpleStream<T> stream(List<T> list, boolean parallel) {
         return PerElementTransformStageChainStream.startStage(list, parallel);
+    }
+
+    public static <T> SimpleStream<T> stream(List<T> list) {
+        return PerElementTransformStageChainStream.startStage(list, false);
     }
 
 

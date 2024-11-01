@@ -1,12 +1,12 @@
 package ru.skuptsov.stream.impl;
 
+import ru.skuptsov.stream.SimpleStream;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Predicate;
-
-import ru.skuptsov.stream.SimpleStream;
 
 public class CloningListStream<T> implements SimpleStream<T> {
 
@@ -53,6 +53,11 @@ public class CloningListStream<T> implements SimpleStream<T> {
     @Override
     public Number sum() {
         return 0;
+    }
+
+    @Override
+    public Number average() {
+        return null;
     }
 
     @Override

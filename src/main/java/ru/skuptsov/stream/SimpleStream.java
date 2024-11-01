@@ -5,8 +5,6 @@ import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import ru.skuptsov.stream.impl.CloningListStream;
-
 public interface SimpleStream<T> {
 
     SimpleStream<T> filter(Predicate<? super T> predicate);
@@ -21,6 +19,8 @@ public interface SimpleStream<T> {
     List<T> collectToList();
 
     Number sum();
+
+    public Number average();
 
     T reduce(T identity, BinaryOperator<T> accumulator);
 }
