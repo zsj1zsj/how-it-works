@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 public class CloningListStream<T> implements SimpleStream<T> {
 
@@ -64,6 +65,12 @@ public class CloningListStream<T> implements SimpleStream<T> {
     public T reduce(T identity, BinaryOperator<T> accumulator) {
         return null;
     }
+
+    @Override
+    public <R> SimpleStream<R> flatMap(Function<? super T, ? extends Stream<? extends R>> mapper) {
+        return null;
+    }
+
 
     ;
 }

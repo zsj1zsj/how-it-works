@@ -36,9 +36,15 @@ public class Main {
                 Arrays.asList(7, 8, 9)
         );
 
-        List<String> nameList = Arrays.asList("Tanaka", "Suzuki", "Takahashi");
-        Stream<Object> stream = nameList.stream().flatMap(x -> Stream.of(x, x.length()));
-        System.out.println((stream.collect(Collectors.toList())));
+//        List<String> nameList = Arrays.asList("Tanaka", "Suzuki", "Takahashi");
+//        Stream<Object> stream = nameList.stream().flatMap(x -> Stream.of(x, x.length()));
+//        System.out.println((stream.collect(Collectors.toList())));
+        List<List<String>> flatmapList = List.of(List.of("Tanaka"), List.of("Suzuki", "Takahashi"));
+        List<String> resultList = PerElementTransformStageChainStream.stream(flatmapList, false)
+                .flatMap(s -> s.stream()).collectToList();
+
+        System.out.println(resultList);
+
     }
 
 }
