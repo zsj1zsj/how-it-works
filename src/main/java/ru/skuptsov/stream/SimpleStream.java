@@ -24,5 +24,5 @@ public interface SimpleStream<T> {
 
     T reduce(T identity, BinaryOperator<T> accumulator);
 
-    <R> SimpleStream<R> flatMap(Function<? super T, ? extends Stream<? extends R>> mapper);
+    <R> SimpleStream<R> flatMap(Function<? super T, ? extends SimpleStream<? extends R>> mapper);
 }

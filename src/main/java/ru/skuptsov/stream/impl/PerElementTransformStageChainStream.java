@@ -82,7 +82,7 @@ public class PerElementTransformStageChainStream {
         }
 
         @Override
-        public <R> SimpleStream<R> flatMap(Function<? super OUT, ? extends Stream<? extends R>> mapper) {
+        public <R> SimpleStream<R> flatMap(Function<? super OUT, ? extends SimpleStream<? extends R>> mapper) {
             return new StreamStage<OUT, R>(
                     list,
                     this, // 当前 stage 是 flatMap 的上游
@@ -90,10 +90,13 @@ public class PerElementTransformStageChainStream {
                         @Override
                         public void accept(OUT out) {
                             // 将当前元素 out 应用 mapper 函数，得到一个 Stream
-                            Stream<? extends R> resultStream = mapper.apply(out);
-                            // 遍历 resultStream 中的每个元素，并将其传递给下游消费者
-                            // 这样就实现了“展平”的效果
-                            resultStream.forEach(downstream::accept);
+                            SimpleStream<? extends R> resultSimpleStream = mapper.apply(out);
+
+                            List<? extends R> flatElements = resultSimpleStream.collectToList();
+                            // 遍历收集到的元素，并将其传递给下游消费者
+                            for (R element : flatElements) {
+                                downstream.accept(element);
+                            }
                         }
                     },
                     parallel

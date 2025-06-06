@@ -67,7 +67,7 @@ public class CloningListStream<T> implements SimpleStream<T> {
     }
 
     @Override
-    public <R> SimpleStream<R> flatMap(Function<? super T, ? extends Stream<? extends R>> mapper) {
+    public <R> SimpleStream<R> flatMap(Function<? super T, ? extends SimpleStream<? extends R>> mapper) {
         return null;
     }
 

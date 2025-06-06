@@ -39,9 +39,14 @@ public class Main {
 //        List<String> nameList = Arrays.asList("Tanaka", "Suzuki", "Takahashi");
 //        Stream<Object> stream = nameList.stream().flatMap(x -> Stream.of(x, x.length()));
 //        System.out.println((stream.collect(Collectors.toList())));
-        List<List<String>> flatmapList = List.of(List.of("Tanaka"), List.of("Suzuki", "Takahashi"));
-        List<String> resultList = PerElementTransformStageChainStream.stream(flatmapList, false)
-                .flatMap(s -> s.stream()).collectToList();
+
+        // 示例 1: 展平 List<List<Integer>>
+        List<Integer> resultList = PerElementTransformStageChainStream.stream(nestedList)
+                // 这里应该将当前的 innerList (类型是 List<Integer>) 转换为 SimpleStream
+                .flatMap(innerList -> PerElementTransformStageChainStream.stream((List<Integer>) innerList))
+                .collectToList();
+
+
 
         System.out.println(resultList);
 
